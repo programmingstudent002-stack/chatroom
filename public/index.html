@@ -1,1016 +1,536 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>쉬는 방</title>
-  <!-- Socket.IO 클라이언트 라이브러리 자동 로드 -->
-  <script src="/socket.io/socket.io.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supabase 채팅방</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    }
-
+    * { box-sizing: border-box; }
     body {
-      min-height: 100vh;
-      background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
-      color: #f0f4f8;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 16px;
-      overflow-x: hidden;
+      margin: 0;
+      padding: 20px;
+      background: #f2f4f8;
+      font-family: Arial, sans-serif;
+      color: #222;
     }
-
-    body::before {
-      content: "";
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-image: 
-        radial-gradient(1.5px 1.5px at 20% 30%, #ffffff, transparent),
-        radial-gradient(1px 1px at 70% 20%, #a3bffa, transparent),
-        radial-gradient(2px 2px at 40% 70%, #ffffff, transparent),
-        radial-gradient(1px 1px at 85% 65%, #e2e8f0, transparent),
-        radial-gradient(1.5px 1.5px at 15% 80%, #cbd5e1, transparent),
-        radial-gradient(1px 1px at 55% 40%, #ffffff, transparent);
-      opacity: 0.55;
-      pointer-events: none;
-    }
-
     .container {
-      width: 100%;
-      max-width: 440px;
-      background: rgba(20, 28, 43, 0.78);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 24px;
-      padding: 28px 22px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-      position: relative;
-      z-index: 1;
+      max-width: 650px;
+      margin: 30px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px #0001;
     }
-
-    .screen {
-      display: none;
-      animation: fadeIn 0.35s ease;
-    }
-
-    .screen.active {
-      display: block;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .moon-icon {
-      font-size: 36px;
-      text-align: center;
-      margin-bottom: 8px;
-    }
-
-    h1 {
-      font-size: 24px;
-      font-weight: 700;
-      text-align: center;
-      color: #f8fafc;
-      letter-spacing: -0.5px;
-    }
-
-    .subtitle {
-      font-size: 14px;
-      color: #94a3b8;
-      text-align: center;
-      margin-top: 6px;
-      margin-bottom: 20px;
-    }
-
-    .notice-box {
-      background: rgba(148, 163, 184, 0.1);
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      border-radius: 12px;
+    h1, h2 { text-align: center; }
+    input, button {
       padding: 12px;
-      font-size: 13px;
-      color: #cbd5e1;
-      text-align: center;
-      margin-bottom: 20px;
-      line-height: 1.5;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 15px;
     }
-
-    input[type="text"],
-    input[type="password"] {
-      width: 100%;
-      padding: 13px 15px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      background: rgba(15, 23, 42, 0.7);
-      color: #f8fafc;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input:focus {
-      border-color: #818cf8;
-    }
-
+    input { width: 100%; margin: 7px 0; }
     button {
       cursor: pointer;
+      background: #5265e8;
+      color: white;
       border: none;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.2s;
+      margin: 4px;
     }
-
-    .btn-primary {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #6366f1, #4f46e5);
-      color: white;
-      margin-top: 10px;
-      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-    }
-
-    .btn-primary:hover {
-      filter: brightness(1.1);
-    }
-
-    .host-login-section {
-      margin-top: 32px;
-      padding-top: 18px;
-      border-top: 1px dashed rgba(255, 255, 255, 0.12);
-    }
-
-    .host-label {
-      font-size: 12px;
-      color: #64748b;
-      margin-bottom: 8px;
-      display: block;
-    }
-
-    .host-input-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .host-input-row input {
-      padding: 9px 12px;
-      font-size: 13px;
-    }
-
-    .btn-host {
-      padding: 9px 14px;
-      background: rgba(255, 255, 255, 0.1);
-      color: #cbd5e1;
-      white-space: nowrap;
-      font-size: 13px;
-    }
-
-    .btn-host:hover {
-      background: rgba(255, 255, 255, 0.18);
-    }
-
-    /* 화면 2: 입장 확인 중 */
-    .waiting-box {
-      text-align: center;
-      padding: 40px 10px;
-    }
-
-    .pulse-circle {
-      width: 56px;
-      height: 56px;
-      margin: 0 auto 20px;
-      border-radius: 50%;
-      background: rgba(129, 140, 248, 0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.5); }
-      70% { box-shadow: 0 0 0 18px rgba(129, 140, 248, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
-    }
-
-    .waiting-text {
-      font-size: 17px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .waiting-sub {
-      font-size: 13px;
-      color: #94a3b8;
-      margin-bottom: 24px;
-    }
-
-    .btn-outline {
-      background: transparent;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      color: #cbd5e1;
-      padding: 10px 18px;
-      font-size: 13px;
-    }
-
-    /* 화면 3: 채팅방 */
-    .chat-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .chat-title {
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .participants {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 4px;
-    }
-
-    .badge-role {
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 20px;
-      background: rgba(99, 102, 241, 0.25);
-      color: #a5b4fc;
-    }
-
-    .announcement-bar {
-      margin-top: 12px;
-      background: rgba(250, 204, 21, 0.1);
-      border: 1px solid rgba(250, 204, 21, 0.25);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 13px;
-      color: #fef08a;
-    }
-
-    .host-notice-edit {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .host-notice-edit input {
-      padding: 7px 10px;
-      font-size: 12px;
-    }
-
-    .btn-small {
-      padding: 7px 10px;
-      font-size: 12px;
-      border-radius: 8px;
-      white-space: nowrap;
-    }
-
-    .chat-messages {
-      height: 320px;
+    button:hover { opacity: .85; }
+    .danger { background: #e34b4b; }
+    .success { background: #249c68; }
+    .hidden { display: none !important; }
+    #status { text-align: center; color: #555; margin: 15px 0; }
+    #messages {
+      height: 350px;
       overflow-y: auto;
-      padding: 14px 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .msg {
-      max-width: 86%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .msg.other {
-      align-self: flex-start;
-    }
-
-    .msg.me {
-      align-self: flex-end;
-      align-items: flex-end;
-    }
-
-    .msg-sender {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-bottom: 4px;
-    }
-
-    .msg-bubble {
-      padding: 10px 14px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.45;
-      word-break: break-word;
-    }
-
-    .msg.other .msg-bubble {
-      background: rgba(30, 41, 59, 0.9);
-      color: #e2e8f0;
-      border-bottom-left-radius: 4px;
-    }
-
-    .msg.me .msg-bubble {
-      background: #4f46e5;
-      color: #ffffff;
-      border-bottom-right-radius: 4px;
-    }
-
-    .chat-link {
-      color: #93c5fd;
-      text-decoration: underline;
-      word-break: break-all;
-    }
-
-    .msg.me .chat-link {
-      color: #e0e7ff;
-    }
-
-    .translated-text {
-      margin-top: 6px;
-      padding-top: 6px;
-      border-top: 1px dashed rgba(255, 255, 255, 0.25);
-      font-size: 13px;
-      color: #fde047;
-    }
-
-    .proofread-box {
-      margin-top: 6px;
-      background: rgba(244, 63, 94, 0.16);
-      border: 1px solid rgba(244, 63, 94, 0.4);
-      border-radius: 12px;
-      padding: 9px 12px;
-      font-size: 12px;
-      color: #fecdd3;
-      line-height: 1.5;
-      width: 100%;
-    }
-
-    .proofread-title {
-      font-weight: 700;
-      color: #fda4af;
-      margin-bottom: 4px;
-    }
-
-    .proofread-item {
-      margin-top: 4px;
-      word-break: break-word;
-    }
-
-    .proofread-tag {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 1px 6px;
-      border-radius: 6px;
-      margin-right: 4px;
-      background: rgba(244, 63, 94, 0.3);
-      color: #ffe4e6;
-    }
-
-    .proofread-fix {
-      color: #86efac;
-      font-weight: 600;
-    }
-
-    .proofread-full {
-      margin-top: 6px;
-      padding-top: 6px;
-      border-top: 1px dashed rgba(255, 255, 255, 0.2);
-      color: #e2e8f0;
-    }
-
-    .msg-tools {
-      display: flex;
-      gap: 6px;
-      margin-top: 4px;
-    }
-
-    .btn-msg-tool {
-      background: rgba(255, 255, 255, 0.08);
-      color: #cbd5e1;
-      font-size: 11px;
-      padding: 4px 9px;
-      border-radius: 8px;
-    }
-
-    .btn-msg-tool:hover {
-      background: rgba(255, 255, 255, 0.16);
-      color: #ffffff;
-    }
-
-    .msg-system {
-      align-self: center;
-      font-size: 12px;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 5px 12px;
-      border-radius: 20px;
-      text-align: center;
-    }
-
-    .chat-input-area {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
-    .btn-send {
-      padding: 0 18px;
-      background: #6366f1;
-      color: white;
-      white-space: nowrap;
-    }
-
-    .host-panel {
-      margin-top: 16px;
-      padding: 14px;
-      background: rgba(15, 23, 42, 0.75);
-      border: 1px solid rgba(129, 140, 248, 0.25);
-      border-radius: 16px;
-    }
-
-    .host-panel-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #a5b4fc;
-      margin-bottom: 10px;
-    }
-
-    .waiting-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .waiting-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 8px 12px;
+      background: #f7f8fc;
+      padding: 12px;
       border-radius: 10px;
-      font-size: 13px;
+      margin: 15px 0;
     }
-
-    .action-btns {
-      display: flex;
-      gap: 6px;
+    .message {
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      overflow-wrap: anywhere;
     }
-
-    .btn-accept {
-      background: #10b981;
-      color: #064e3b;
-      padding: 5px 10px;
-      font-size: 12px;
-      border-radius: 8px;
+    .notice {
+      background: #fff3cf;
+      border: 1px solid #f0d47a;
     }
-
-    .btn-reject {
-      background: rgba(244, 63, 94, 0.2);
-      color: #fda4af;
-      padding: 5px 10px;
-      font-size: 12px;
-      border-radius: 8px;
-    }
-
-    .btn-close-room {
-      width: 100%;
+    .message small { color: #888; }
+    .message-content { margin: 8px 0; white-space: pre-wrap; }
+    .member {
       padding: 10px;
-      background: rgba(239, 68, 68, 0.15);
-      color: #fca5a5;
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      font-size: 13px;
+      border-bottom: 1px solid #eee;
     }
-
-    .btn-close-room:hover {
-      background: rgba(239, 68, 68, 0.28);
-    }
-
-    .exit-link {
-      display: block;
-      text-align: center;
-      margin-top: 12px;
-      font-size: 12px;
-      color: #64748b;
-      background: none;
-      width: 100%;
-    }
+    .send-area { display: flex; gap: 5px; }
+    .send-area input { flex: 1; min-width: 0; }
   </style>
 </head>
+
 <body>
+<div class="container">
+  <h1>💬 우리들의 채팅방</h1>
 
-  <div class="container">
+  <!-- 입장 화면 -->
+  <section id="loginSection">
+    <h2>입장하기</h2>
+    <input id="nameInput" placeholder="이름을 입력하세요">
+    <input id="emojiInput" placeholder="나를 표현하는 이모지" value="😊">
+    <input id="passwordInput" type="password" placeholder="방장 암호 (방장만)">
+    <button id="hostButton" class="success">방장 입장</button>
+    <button id="guestButton">손님 입장 요청</button>
+    <p id="status" aria-live="polite"></p>
+  </section>
 
-    <!-- [화면 1: 입구] -->
-    <div id="screen-entrance" class="screen active">
-      <div class="moon-icon">🌙</div>
-      <h1>쉬는 방</h1>
-      <p class="subtitle">내 친구들과 내가 쓰는 조용한 밤의 공간</p>
+  <!-- 대기 화면 -->
+  <section id="waitingSection" class="hidden">
+    <h2>⏳ 입장 승인 대기 중</h2>
+    <p id="waitingStatus" aria-live="polite">방장의 승인을 기다리고 있어요.</p>
+  </section>
 
-      <div class="notice-box">
-        ✨ 방장이 먼저 들어와야 입장할 수 있어요.
-      </div>
+  <!-- 채팅 화면 -->
+  <section id="chatSection" class="hidden">
+    <h2>채팅방</h2>
 
-      <input type="text" id="guest-nickname" placeholder="사용할 닉네임을 입력하세요" maxlength="12" onkeypress="if(event.key==='Enter') requestEnter()" />
-      <button class="btn-primary" onclick="requestEnter()">입장 요청하기</button>
-
-      <div class="host-login-section">
-        <span class="host-label">🔑 방장 입장</span>
-        <div class="host-input-row">
-          <input type="password" id="host-password" placeholder="방장 암호 (기본: 1234)" onkeypress="if(event.key==='Enter') enterAsHost()" />
-          <button class="btn-host" onclick="enterAsHost()">방장으로 입장</button>
-        </div>
-      </div>
+    <!-- 방장 전용 관리 -->
+    <div id="hostPanel" class="hidden">
+      <h3>👑 입장 대기 목록</h3>
+      <div id="waitingList"></div>
+      <button id="closeRoomButton" class="danger">방 닫기</button>
+      <hr>
     </div>
 
-    <!-- [화면 2: 입장 확인 중] -->
-    <div id="screen-waiting" class="screen">
-      <div class="waiting-box">
-        <div class="pulse-circle">✨</div>
-        <p class="waiting-text">방장이 수락하면 바로 들어가요</p>
-        <p class="waiting-sub"><strong id="waiting-user-name">친구</strong>님의 입장을 방장에게 요청했어요...</p>
-        <button class="btn-outline" onclick="cancelWaiting()">입장 취소하고 돌아가기</button>
-      </div>
+    <div id="messages"></div>
+
+    <div class="send-area">
+      <input id="messageInput" placeholder="메시지를 입력하세요">
+      <button id="sendButton">보내기</button>
     </div>
 
-    <!-- [화면 3: 채팅방] -->
-    <div id="screen-chat" class="screen">
-      <div class="chat-header">
-        <div>
-          <div class="chat-title">🌙 쉬는 방</div>
-          <div class="participants" id="participant-list">참여 중(0)</div>
-        </div>
-        <span class="badge-role" id="role-badge">친구</span>
-      </div>
-
-      <!-- 공지사항 -->
-      <div class="announcement-bar">
-        <div class="announcement-top">
-          <span>📢 <strong>공지:</strong> <span id="notice-text">오늘도 수고 많았어. 편하게 쉬다 가자 🌌</span></span>
-        </div>
-        <div id="host-notice-control" class="host-notice-edit" style="display: none;">
-          <input type="text" id="notice-input" placeholder="새 공지 내용을 입력하세요" onkeypress="if(event.key==='Enter') updateNotice()" />
-          <button class="btn-small btn-host" onclick="updateNotice()">공지 올리기</button>
-        </div>
-      </div>
-
-      <!-- 대화창 -->
-      <div class="chat-messages" id="chat-messages"></div>
-
-      <!-- 메시지 입력 -->
-      <div class="chat-input-area">
-        <input type="text" id="chat-input" placeholder="조용히 메시지 남기기..." onkeypress="if(event.key==='Enter') sendMessage()" />
-        <button class="btn-send" onclick="sendMessage()">보내기</button>
-      </div>
-
-      <!-- 방장 전용 관리 패널 -->
-      <div id="host-panel" class="host-panel" style="display: none;">
-        <div class="host-panel-title">👑 입장을 기다리는 사람</div>
-        <ul class="waiting-list" id="waiting-list">
-          <li style="font-size:12px; color:#64748b; text-align:center; padding:8px;">대기 중인 친구가 없습니다.</li>
-        </ul>
-        <button class="btn-close-room" onclick="closeRoom()">방 닫기</button>
-      </div>
-
-      <button id="guest-exit-btn" class="exit-link" onclick="leaveRoom()">입구로 나가기</button>
+    <div id="noticeArea" class="hidden">
+      <button id="noticeButton">공지 보내기</button>
     </div>
 
-  </div>
+    <p id="chatStatus" aria-live="polite"></p>
+  </section>
+</div>
 
-  <script>
-    const socket = io();
-    let myName = "";
-    let isHost = false;
+<script>
+const SUPABASE_URL = 'https://smezazodxeybyjizddhe.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_6EKk1k5RFlWGnbsFXXhCZQ_VlM9wNHA';
 
-    function goScreen(screenId) {
-      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-      document.getElementById(screenId).classList.add('active');
-    }
+const supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
-    // [화면 1] 친구 입장 요청
-    function requestEnter() {
-      const nickname = document.getElementById('guest-nickname').value.trim();
-      if (!nickname) {
-        alert("닉네임을 입력해 주세요!");
-        return;
-      }
-      socket.emit('guest-request', nickname);
-    }
+let myId = null;
+let myName = '';
+let myRole = '';
+let myEmoji = '😊';
 
-    // [화면 1] 방장 입장
-    function enterAsHost() {
-      const pw = document.getElementById('host-password').value.trim();
-      if (!pw) {
-        alert("방장 암호를 입력해 주세요!");
-        return;
-      }
-      socket.emit('host-login', pw);
-    }
+let statusTimer = null;
+let messageTimer = null;
+let listTimer = null;
+let stopped = false;
 
-    // 대기 취소
-    function cancelWaiting() {
-      location.reload();
-    }
+const $ = id => document.getElementById(id);
 
-    // 방 나가기
-    function leaveRoom() {
-      if (confirm("채팅방에서 나갈까요?")) {
-        location.reload();
-      }
-    }
+function showSection(id) {
+  ['loginSection', 'waitingSection', 'chatSection'].forEach(section => {
+    $(section).classList.add('hidden');
+  });
+  $(id).classList.remove('hidden');
+}
 
-    // 공지 수정
-    function updateNotice() {
-      const input = document.getElementById('notice-input');
-      const text = input.value.trim();
-      if (!text) return;
-      socket.emit('update-notice', text);
-      input.value = "";
-    }
+function showStatus(message) {
+  $('status').textContent = message;
+}
 
-    // 메시지 보내기
-    function sendMessage() {
-      const input = document.getElementById('chat-input');
-      const text = input.value.trim();
-      if (!text) return;
-      socket.emit('send-message', text);
-      input.value = "";
-    }
+function stopTimer(name) {
+  if (name === 'all' || name === 'status') {
+    clearInterval(statusTimer);
+    statusTimer = null;
+  }
+  if (name === 'all' || name === 'messages') {
+    clearInterval(messageTimer);
+    messageTimer = null;
+  }
+  if (name === 'all' || name === 'list') {
+    clearInterval(listTimer);
+    listTimer = null;
+  }
+}
 
-    // 방장 수락/거절
-    function respondRequest(targetId, accept) {
-      socket.emit('handle-request', { targetId, accept });
-    }
+function stopEverything() {
+  stopped = true;
+  stopTimer('all');
+}
 
-    // 방 닫기
-    function closeRoom() {
-      if (confirm("정말 방을 닫을까요? 모든 친구가 입구로 이동합니다.")) {
-        socket.emit('close-room');
-      }
-    }
+function enterChat() {
+  stopTimer('status');
+  showSection('chatSection');
 
-    // --- 서버 실시간 이벤트 수신 ---
+  if (myRole === 'host') {
+    $('hostPanel').classList.remove('hidden');
+    $('noticeArea').classList.remove('hidden');
+    loadWaitingMembers();
+    listTimer = setInterval(loadWaitingMembers, 2500);
+  }
 
-    socket.on('login-error', (msg) => {
-      alert(msg);
-    });
+  loadMessages();
+  messageTimer = setInterval(loadMessages, 2500);
+}
 
-    socket.on('waiting-approved-pending', (name) => {
-      myName = name;
-      document.getElementById('waiting-user-name').innerText = name;
-      goScreen('screen-waiting');
-    });
+// 방장 입장
+$('hostButton').addEventListener('click', async () => {
+  const name = $('nameInput').value.trim();
+  const password = $('passwordInput').value;
 
-    socket.on('request-rejected', (msg) => {
-      alert(msg);
-      goScreen('screen-entrance');
-    });
+  if (!name) {
+    showStatus('이름을 입력하세요.');
+    return;
+  }
 
-    socket.on('enter-success', (data) => {
-      isHost = data.isHost;
-      myName = data.name;
+  if (password !== '1234') {
+    showStatus('방장 암호가 틀렸습니다.');
+    return;
+  }
 
-      document.getElementById('role-badge').innerText = isHost ? "👑 방장" : "🌙 친구";
-      document.getElementById('host-panel').style.display = isHost ? "block" : "none";
-      document.getElementById('host-notice-control').style.display = isHost ? "flex" : "none";
-      document.getElementById('guest-exit-btn').style.display = isHost ? "none" : "block";
+  const { data: existing, error: checkError } = await supabase
+    .from('members')
+    .select('id')
+    .eq('role', 'host')
+    .limit(1);
 
-      document.getElementById('notice-text').innerText = data.notice;
-      updateParticipantsUI(data.participants);
-      if (isHost) renderWaitingList(data.waitingList);
+  if (checkError) {
+    showStatus('방장 확인 실패: ' + checkError.message);
+    return;
+  }
 
-      const chatBox = document.getElementById('chat-messages');
-      chatBox.innerHTML = "";
-      data.messages.forEach(msg => appendMessageToUI(msg));
+  if (existing.length > 0) {
+    showStatus('이미 방장이 입장해 있습니다.');
+    return;
+  }
 
-      goScreen('screen-chat');
-    });
+  const { data, error } = await supabase
+    .from('members')
+    .insert([{
+      name: '방장',
+      emoji: $('emojiInput').value.trim() || '👑',
+      role: 'host',
+      status: 'approved'
+    }])
+    .select()
+    .single();
 
-    socket.on('room-state', (state) => {
-      updateParticipantsUI(state.participants);
-      document.getElementById('notice-text').innerText = state.notice;
-    });
+  if (error) {
+    showStatus('방장 입장 실패: ' + error.message);
+    return;
+  }
 
-    socket.on('notice-updated', (newNotice) => {
-      document.getElementById('notice-text').innerText = newNotice;
-    });
+  myId = data.id;
+  myName = data.name;
+  myRole = 'host';
+  myEmoji = data.emoji || '👑';
 
-    socket.on('waiting-list-update', (list) => {
-      renderWaitingList(list);
-    });
+  enterChat();
+});
 
-    socket.on('new-message', (msgObj) => {
-      appendMessageToUI(msgObj);
-    });
+// 손님 입장 요청
+$('guestButton').addEventListener('click', async () => {
+  const name = $('nameInput').value.trim();
 
-    socket.on('room-closed', (reason) => {
-      alert(reason);
-      location.reload();
-    });
+  if (!name) {
+    showStatus('이름을 입력하세요.');
+    return;
+  }
 
-    // --- UI 렌더링 및 부가 기능 (복사 / 번역 / 링크 / 맞춤법·띄어쓰기) ---
+  // 방장 존재 확인
+  const { data: hosts, error: hostError } = await supabase
+    .from('members')
+    .select('id')
+    .eq('role', 'host')
+    .eq('status', 'approved')
+    .limit(1);
 
-    function updateParticipantsUI(list) {
-      document.getElementById('participant-list').innerText = `참여 중(${list.length}): ${list.join(', ')}`;
-    }
+  if (hostError) {
+    showStatus('방장 확인 실패: ' + hostError.message);
+    return;
+  }
 
-    function renderWaitingList(list) {
-      const ul = document.getElementById('waiting-list');
-      if (!list || list.length === 0) {
-        ul.innerHTML = '<li style="font-size:12px; color:#64748b; text-align:center; padding:8px;">대기 중인 친구가 없습니다.</li>';
-        return;
-      }
-      ul.innerHTML = "";
-      list.forEach(item => {
-        const li = document.createElement('li');
-        li.className = 'waiting-item';
-        li.innerHTML = `
-          <span>${escapeHtml(item.name)}</span>
-          <div class="action-btns">
-            <button class="btn-accept" onclick="respondRequest('${item.id}', true)">수락</button>
-            <button class="btn-reject" onclick="respondRequest('${item.id}', false)">거절</button>
-          </div>
-        `;
-        ul.appendChild(li);
-      });
-    }
+  if (!hosts || hosts.length === 0) {
+    showStatus('방장이 아직 안 들어왔어요');
+    return;
+  }
 
-    function appendMessageToUI(msgObj) {
-      const chatBox = document.getElementById('chat-messages');
+  const emoji = $('emojiInput').value.trim() || '😊';
 
-      if (msgObj.isSystem) {
-        const sysDiv = document.createElement('div');
-        sysDiv.className = 'msg-system';
-        sysDiv.innerText = msgObj.text;
-        chatBox.appendChild(sysDiv);
-        chatBox.scrollTop = chatBox.scrollHeight;
-        return;
-      }
+  const { data, error } = await supabase
+    .from('members')
+    .insert([{
+      name: name,
+      emoji: emoji,
+      role: 'guest',
+      status: 'waiting'
+    }])
+    .select()
+    .single();
 
-      const isMe = msgObj.senderId === socket.id;
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `msg ${isMe ? 'me' : 'other'}`;
+  if (error) {
+    showStatus('입장 요청 실패: ' + error.message);
+    return;
+  }
 
-      const linkedHtml = linkify(escapeHtml(msgObj.text));
-      const cleanText = msgObj.text.replace(/https?:\/\/[^\s]+/g, '').trim();
-      const hasKorean = /[가-힣]/.test(cleanText);
-      const hasForeign = /[a-zA-Z\u3040-\u30ff\u4e00-\u9faf]/.test(cleanText);
+  myId = data.id;
+  myName = data.name;
+  myRole = 'guest';
+  myEmoji = emoji;
 
-      const senderSpan = document.createElement('span');
-      senderSpan.className = 'msg-sender';
-      senderSpan.innerText = msgObj.sender;
+  showSection('waitingSection');
+  checkMyStatus();
+  statusTimer = setInterval(checkMyStatus, 2500);
+});
 
-      const bubbleDiv = document.createElement('div');
-      bubbleDiv.className = 'msg-bubble';
-      bubbleDiv.innerHTML = linkedHtml;
+// 내 입장 상태 확인
+async function checkMyStatus() {
+  if (stopped || !myId) return;
 
-      const proofSlot = document.createElement('div');
+  const { data, error } = await supabase
+    .from('members')
+    .select('id, status')
+    .eq('id', myId)
+    .maybeSingle();
 
-      const toolsDiv = document.createElement('div');
-      toolsDiv.className = 'msg-tools';
+  if (error) {
+    $('waitingStatus').textContent = '상태 확인에 실패했습니다.';
+    return;
+  }
 
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'btn-msg-tool';
-      copyBtn.innerText = '📋 복사';
-      copyBtn.onclick = () => copyText(msgObj.text, copyBtn);
-      toolsDiv.appendChild(copyBtn);
+  if (!data) {
+    stopTimer('status');
+    $('waitingStatus').textContent = '방에서 나왔어요';
+    return;
+  }
 
-      if (hasForeign) {
-        const transBtn = document.createElement('button');
-        transBtn.className = 'btn-msg-tool';
-        transBtn.innerText = '🌐 번역';
-        transBtn.onclick = () => translateMessage(cleanText || msgObj.text, bubbleDiv, transBtn);
-        toolsDiv.appendChild(transBtn);
-      }
+  if (data.status === 'approved') {
+    enterChat();
+  }
+}
 
-      msgDiv.appendChild(senderSpan);
-      msgDiv.appendChild(bubbleDiv);
-      msgDiv.appendChild(proofSlot);
-      msgDiv.appendChild(toolsDiv);
+// 방장: 대기자 목록
+async function loadWaitingMembers() {
+  if (stopped || myRole !== 'host') return;
 
-      chatBox.appendChild(msgDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
+  const { data, error } = await supabase
+    .from('members')
+    .select('id, name, emoji')
+    .eq('role', 'guest')
+    .eq('status', 'waiting')
+    .order('created_at', { ascending: true });
 
-      if (hasKorean) {
-        const checkResult = checkKoreanGrammarAndSpacing(cleanText);
-        if (checkResult.hasError) {
-          const box = document.createElement('div');
-          box.className = 'proofread-box';
+  if (error) {
+    $('waitingList').textContent = '목록을 불러오지 못했습니다.';
+    return;
+  }
 
-          let html = `<div class="proofread-title">✍️ 맞춤법 · 띄어쓰기가 틀렸어요!</div>`;
-          checkResult.items.forEach(item => {
-            html += `
-              <div class="proofread-item">
-                <span class="proofread-tag">${item.type}</span>
-                <span>'${escapeHtml(item.wrong)}' → <span class="proofread-fix">'${escapeHtml(item.right)}'</span></span>
-              </div>
-            `;
-          });
+  const list = $('waitingList');
+  list.replaceChildren();
 
-          if (checkResult.correctedSentence && checkResult.correctedSentence !== cleanText) {
-            html += `<div class="proofread-full">💡 바른 문장: <span class="proofread-fix">${escapeHtml(checkResult.correctedSentence)}</span></div>`;
-          }
+  data.forEach(member => {
+    const item = document.createElement('div');
+    item.className = 'member';
 
-          box.innerHTML = html;
-          proofSlot.appendChild(box);
-          chatBox.scrollTop = chatBox.scrollHeight;
-        }
-      }
-    }
+    const label = document.createElement('span');
+    label.textContent = `${member.emoji || '😊'} ${member.name}`;
 
-    function checkKoreanGrammarAndSpacing(text) {
-      const items = [];
-      let corrected = text;
+    const approve = document.createElement('button');
+    approve.textContent = '수락';
+    approve.className = 'success';
+    approve.addEventListener('click', () => updateMember(member.id));
 
-      const addIssue = (type, wrong, right) => {
-        if (!wrong || !right || wrong === right) return;
-        if (!items.some(it => it.wrong === wrong && it.right === right)) {
-          items.push({ type, wrong, right });
-        }
-      };
+    const reject = document.createElement('button');
+    reject.textContent = '거절';
+    reject.className = 'danger';
+    reject.addEventListener('click', () => deleteMember(member.id));
 
-      const spellingRules = [
-        { regex: /안됀|안돼는|안됄|안됐어|안되요|안되서|안되야|안되도/g, fix: s => s
-          .replace(/안됀/g, '안 된').replace(/안돼는/g, '안 되는').replace(/안됄/g, '안 될').replace(/안됐/g, '안 됐')
-          .replace(/안되요/g, '안 돼요').replace(/안되서/g, '안 돼서').replace(/안되야/g, '안 돼야').replace(/안되도/g, '안 돼도')
-        },
-        { regex: /(^|\s)(되요|되서|되야|되도)/g, fix: s => s.replace('되', '돼') },
-        { regex: /(^|\s)(돼서|돼야|돼도|돼고|돼지|돼면|돼는|돼니)/g, fix: s => s.replace('돼', '되') },
-        { regex: /어의없([가-힣]*)/g, fix: s => s.replace('어의', '어이') },
-        { regex: /문안하([가-힣]*)/g, fix: s => s.replace('문안', '무난') },
-        { regex: /금새/g, fix: () => '금세' },
-        { regex: /몇일/g, fix: () => '며칠' },
-        { regex: /오랫만([가-힣]*)/g, fix: s => s.replace('오랫만', '오랜만') },
-        { regex: /설레임([가-힣]*)/g, fix: s => s.replace('설레임', '설렘') },
-        { regex: /어떻해/g, fix: () => '어떡해' },
-        { regex: /어떡계|어떻계/g, fix: () => '어떻게' },
-        { regex: /([가-힣]+)(할께|갈께|볼께|줄께|먹을께|할께요|갈께요|볼께요)/g, fix: s => s.replace('께', '게') },
-        { regex: /일부로/g, fix: () => '일부러' },
-        { regex: /역활/g, fix: () => '역할' },
-        { regex: /바램/g, fix: () => '바람' },
-        { regex: /갯수/g, fix: () => '개수' },
-        { regex: /댓가/g, fix: () => '대가' },
-        { regex: /([가-힣]+)(햇어|햇다|햇는데|햇지|햇니|갔엇|먹었엇|했엇|왓어|봣어|줫어)/g, fix: s => s
-          .replace(/햇/g, '했').replace(/엇/g, '었').replace(/왓/g, '왔').replace(/봣/g, '봤').replace(/줫/g, '줬')
-        },
-        { regex: /([가-힣]*)(잇어|잇다|잇는데|잇지|잇니|잇음|없엇)/g, fix: s => s.replace(/잇/g, '있').replace(/엇/g, '었') },
-        { regex: /([가-힣]*)(마춰|마추다|마췄)/g, fix: s => s.replace(/마춰/g, '맞춰').replace(/마추/g, '맞추').replace(/마췄/g, '맞췄') },
-        { regex: /감기\s?낳([가-힣]*)|병이\s?낳([가-힣]*)/g, fix: s => s.replace('낳', '나') },
-        { regex: /건들([지어면고])/g, fix: s => s.replace('건들', '건드리') },
-        { regex: /희안하([가-힣]*)/g, fix: s => s.replace('희안', '희한') },
-        { regex: /예기([가-힣]*)/g, fix: s => s.replace('예기', '얘기') },
-        { regex: /([가-힣]*)(뵈요|봬어|봬었)/g, fix: s => s.replace('뵈요', '봬요').replace('봬어', '뵈어').replace('봬었', '뵈었') },
-        { regex: /무릅/g, fix: () => '무릎' },
-        { regex: /([가-힣]+)읍니다/g, fix: s => s.replace('읍니다', '습니다') },
-        { regex: /([가-힣]+)던지\s([가-힣]+)던지/g, fix: s => s.replace(/던지/g, '든지') },
-        { regex: /([가-힣]+)데로/g, fix: s => s.replace('데로', '대로') },
-        { regex: /([가-힣]+[을를은는이가])예요/g, fix: s => s.replace('예요', '에요') }
-      ];
+    item.append(label, approve, reject);
+    list.appendChild(item);
+  });
 
-      spellingRules.forEach(rule => {
-        const matches = [...corrected.matchAll(rule.regex)];
-        matches.forEach(m => {
-          const wrong = m[0].trim();
-          const right = rule.fix(m[0]).trim();
-          if (wrong !== right) {
-            addIssue("맞춤법", wrong, right);
-            corrected = corrected.replace(m[0], rule.fix(m[0]));
-          }
-        });
-      });
+  if (data.length === 0) {
+    list.textContent = '대기 중인 사람이 없습니다.';
+  }
+}
 
-      const spacingRules = [
-        { regex: /([가-힣]+[을를은는의])(수|것|거|데|바|줄|뿐|척|채|만큼|대로)([가-힣]*)/g, fix: m => `${m[1]} ${m[2]}${m[3]}` },
-        { regex: /([가-힣]{2,}[아어해])(줘|주|봐|보|버렸|버려|놓|놔|둬|두|가|오|싶|있|없)([가-힣]*)/g, fix: m => `${m[1]} ${m[2]}${m[3]}` },
-        { regex: /(^|\s)(안|못)([가-힣]{2,})/g, fix: m => {
-          const keep = ['안녕', '안전', '안내', '안심', '안경', '안타', '안개', '안부', '안정', '안팎', '안주', '안방', '안과', '안보', '못난', '못생', '못지', '못하'];
-          if (keep.some(w => (m[2] + m[3]).startsWith(w))) return m[0];
-          return `${m[1]}${m[2]} ${m[3]}`;
-        }},
-        { regex: /(^|\s)(더|또|잘|다|좀|막|꼭|참|너무|매우|정말|진짜|완전|항상|자주|이미|벌써|아직|다시|함께|같이)([가-힣]{2,})/g, fix: m => `${m[1]}${m[2]} ${m[3]}` },
-        { regex: /(^|\s)(이|그|저)(사람|친구|거|것|곳|날|때|말|일|집|책|분)/g, fix: m => `${m[1]}${m[2]} ${m[3]}` },
-        { regex: /오늘도수고|잘자|좋은밤/g, fix: m => {
-          if (m[0] === '오늘도수고') return '오늘도 수고';
-          if (m[0] === '잘자') return '잘 자';
-          if (m[0] === '좋은밤') return '좋은 밤';
-          return m[0];
-        }},
-        { regex: /([가-힣]{1,}[을를은는이가에로의와과도만])([가-힣]{2,})/g, fix: m => {
-          const endings = ['입니다', '습니다', '합니다', '됩니다', '였어요', '었어요', '았어요', '했어요', '는데요', '거든요', '잖아요', '주세요', '보세요', '인가요', '인데요', '에서', '에게', '한테', '으로', '부터', '까지', '처럼', '같이', '보다', '마다', '조차', '마저', '밖에'];
-          if (endings.some(end => (m[1] + m[2]).endsWith(end) || m[2].startsWith(end))) return m[0];
-          return `${m[1]} ${m[2]}`;
-        }},
-        { regex: /\s{2,}/g, fix: () => ' ' }
-      ];
+// 손님 승인
+async function updateMember(id) {
+  const { error } = await supabase
+    .from('members')
+    .update({ status: 'approved' })
+    .eq('id', id)
+    .eq('role', 'guest')
+    .eq('status', 'waiting');
 
-      spacingRules.forEach(rule => {
-        const matches = [...corrected.matchAll(rule.regex)];
-        matches.forEach(m => {
-          const wrong = m[0].trim();
-          const right = rule.fix(m).trim();
-          if (wrong !== right) {
-            addIssue("띄어쓰기", wrong, right);
-            corrected = corrected.replace(m[0], rule.fix(m));
-          }
-        });
-      });
+  if (error) alert('승인 실패: ' + error.message);
+  loadWaitingMembers();
+}
 
-      const longTokens = corrected.split(/\s+/).filter(token => /^[가-힣]{6,}$/.test(token));
-      longTokens.forEach(token => {
-        addIssue("띄어쓰기", token, "단어 사이에 띄어쓰기가 필요해요");
-      });
+// 손님 거절
+async function deleteMember(id) {
+  const { error } = await supabase
+    .from('members')
+    .delete()
+    .eq('id', id)
+    .eq('role', 'guest');
 
-      return { hasError: items.length > 0, items, correctedSentence: corrected };
-    }
+  if (error) alert('거절 실패: ' + error.message);
+  loadWaitingMembers();
+}
 
-    function linkify(escapedText) {
-      const urlRegex = /(https?:\/\/[^\s]+)/g;
-      return escapedText.replace(urlRegex, (url) => {
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url} ↗</a>`;
-      });
-    }
+// 메시지 불러오기
+async function loadMessages() {
+  if (stopped) return;
 
-    function copyText(text, btn) {
-      const showCopied = () => {
-        const origin = btn.innerText;
-        btn.innerText = '✅ 복사됨';
-        setTimeout(() => { btn.innerText = origin; }, 1500);
-      };
+  const { data, error } = await supabase
+    .from('messages')
+    .select('*')
+    .order('created_at', { ascending: true });
 
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text).then(showCopied).catch(() => fallbackCopy(text, showCopied));
-      } else {
-        fallbackCopy(text, showCopied);
-      }
-    }
+  if (error) {
+    $('chatStatus').textContent = '메시지를 불러오지 못했습니다.';
+    return;
+  }
 
-    function fallbackCopy(text, callback) {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        callback();
-      } catch (e) {
-        alert("복사에 실패했습니다.");
-      }
-      document.body.removeChild(textarea);
-    }
+  const area = $('messages');
+  area.replaceChildren();
 
-    async function translateMessage(text, bubbleDiv, btn) {
-      if (bubbleDiv.querySelector('.translated-text')) return;
+  data.forEach(msg => {
+    const box = document.createElement('div');
+    box.className = 'message' + (msg.is_notice ? ' notice' : '');
 
-      btn.innerText = '번역 중...';
-      btn.disabled = true;
+    const name = document.createElement('strong');
+    name.textContent = msg.is_notice ? '📢 공지' : msg.name;
 
-      let translated = "";
-      try {
-        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=ko&dt=t&q=${encodeURIComponent(text)}`);
-        const data = await res.json();
-        if (Array.isArray(data) && Array.isArray(data[0])) {
-          translated = data[0].map(item => item[0]).join('');
-        }
-      } catch (e) {
-        try {
-          const res2 = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|ko`);
-          const data2 = await res2.json();
-          translated = data2.responseData?.translatedText || "";
-        } catch (e2) {}
-      }
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    content.textContent = msg.content;
 
-      if (translated) {
-        const transBox = document.createElement('div');
-        transBox.className = 'translated-text';
-        transBox.innerText = `🌐 ${translated}`;
-        bubbleDiv.appendChild(transBox);
-        btn.innerText = '번역 완료';
-      } else {
-        btn.innerText = '🌐 번역 실패';
-        btn.disabled = false;
-      }
-    }
+    const time = document.createElement('small');
+    time.textContent = msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString('ko-KR')
+      : '';
 
-    function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      })[m]);
-    }
-  </script>
+    const like = document.createElement('button');
+    like.textContent = `❤️ ${msg.likes || 0}`;
+    like.addEventListener('click', () => increaseLike(msg.id, msg.likes || 0));
+
+    box.append(name, content, time, like);
+    area.appendChild(box);
+  });
+
+  area.scrollTop = area.scrollHeight;
+}
+
+// 메시지 전송
+async function sendMessage(isNotice = false) {
+  const content = $('messageInput').value.trim();
+
+  if (!content) return;
+
+  const { error } = await supabase
+    .from('messages')
+    .insert([{
+      name: myName,
+      content: content,
+      is_notice: isNotice,
+      likes: 0
+    }]);
+
+  if (error) {
+    $('chatStatus').textContent = '전송 실패: ' + error.message;
+    return;
+  }
+
+  $('messageInput').value = '';
+  $('chatStatus').textContent = '';
+  loadMessages();
+}
+
+$('sendButton').addEventListener('click', () => sendMessage(false));
+
+$('messageInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage(false);
+  }
+});
+
+// 공지 전송
+$('noticeButton').addEventListener('click', () => {
+  if (myRole !== 'host') return;
+  sendMessage(true);
+});
+
+// 좋아요
+async function increaseLike(id, currentLikes) {
+  const { error } = await supabase
+    .from('messages')
+    .update({ likes: currentLikes + 1 })
+    .eq('id', id);
+
+  if (error) {
+    $('chatStatus').textContent = '좋아요 실패: ' + error.message;
+    return;
+  }
+
+  loadMessages();
+}
+
+// 방 닫기
+$('closeRoomButton').addEventListener('click', async () => {
+  if (myRole !== 'host' || !confirm('정말 방을 닫을까요? 모든 기록이 삭제됩니다.')) {
+    return;
+  }
+
+  stopEverything();
+
+  // 먼저 메시지 전체 삭제
+  const { error: messageError } = await supabase
+    .from('messages')
+    .delete()
+    .not('id', 'is', null);
+
+  if (messageError) {
+    alert('메시지 삭제 실패: ' + messageError.message);
+    stopped = false;
+    return;
+  }
+
+  // 멤버 전체 삭제
+  const { error: memberError } = await supabase
+    .from('members')
+    .delete()
+    .not('id', 'is', null);
+
+  if (memberError) {
+    alert('회원 삭제 실패: ' + memberError.message);
+    return;
+  }
+
+  alert('채팅방이 닫혔습니다.');
+
+  myId = null;
+  myRole = '';
+  myName = '';
+  showSection('loginSection');
+});
+</script>
 </body>
 </html>
